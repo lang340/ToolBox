@@ -1,0 +1,46 @@
+{
+  "name": "toolbox",
+  "version": "0.1.0",
+  "description": "绿色便携桌面工具箱 - 番茄钟/剪贴板/日程任务/日记本",
+  "main": "src/main/index.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --win portable",
+    "test": "echo \"E2E tests in P3\" && exit 0"
+  },
+  "author": "海金",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.0.0"
+  },
+  "dependencies": {
+    "sql.js": "^1.11.0"
+  },
+  "build": {
+    "appId": "com.toolbox.app",
+    "productName": "ToolBox",
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": "portable",
+      "artifactName": "ToolBox-v${version}-Portable.exe"
+    },
+    "portable": {
+      "artifactName": "ToolBox-v${version}-Portable.exe"
+    },
+    "files": [
+      "src/**/*",
+      "preload.js",
+      "data/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "data",
+        "to": "data",
+        "filter": ["**/*"]
+      }
+    ]
+  }
+}

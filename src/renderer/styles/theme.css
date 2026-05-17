@@ -1,0 +1,37 @@
+:root {
+  --khaki-50:  #FAF7F0;
+  --khaki-100: #F2ECE0;
+  --khaki-200: #E5DBC8;
+  --khaki-300: #D4C9B2;
+  --khaki-400: #C0B39A;
+  --khaki-500: #A89878;
+  --khaki-600: #8A7A5E;
+  --khaki-700: #6B5C42;
+  --khaki-800: #4A3D2A;
+  --khaki-900: #2C2318;
+
+  --color-success: #7BA05B;
+  --color-warning: #D4A843;
+  --color-danger:  #C47058;
+  --color-info:    #6A9EC4;
+
+  --bg-primary:   var(--khaki-50);
+  --bg-secondary: var(--khaki-100);
+  --bg-hover:     var(--khaki-200);
+  --bg-active:    var(--khaki-300);
+
+  --text-primary:   var(--khaki-800);
+  --text-secondary: var(--khaki-700);
+  --text-muted:     var(--khaki-600);
+  --text-hint:      var(--khaki-500);
+
+  --border-light: var(--khaki-300);
+  --border-medium: var(--khaki-400);
+
+  --sidebar-width: 56px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+
+  --font-family: -apple-system, "Microsoft YaHei", "Segoe UI", sans-serif;
+}

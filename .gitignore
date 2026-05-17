@@ -1,0 +1,10 @@
+node_modules/
+dist/
+*.log
+.DS_Store
+Thumbs.db
+data/toolbox.db
+data/images/clipboard/*
+data/images/diary/*
+!data/images/clipboard/.gitkeep
+!data/images/diary/.gitkeep
