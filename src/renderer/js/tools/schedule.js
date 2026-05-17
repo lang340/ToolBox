@@ -30,6 +30,7 @@ TB.Schedule = {
     this._bindEvents();
     this._renderCalendar();
     this._loadTasks();
+    this._loadMonthTasks();
   },
 
   _bindEvents() {

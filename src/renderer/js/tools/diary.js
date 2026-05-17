@@ -5,7 +5,8 @@ TB.Diary = {
   currentDiaryDate: null,
   diaryList: [],
   autoSaveTimer: null,
-  quill: null,
+  _isLoading: false,
+  _audioCtx: null,
 
   render() {
     return `
@@ -176,16 +177,19 @@ TB.Diary = {
   },
 
   async _loadDiary(date) {
+    this._isLoading = true;
     try {
       const diary = await window.api.diary.get(date);
-      const editor = document.getElementById('diary-editor');
-      if (diary && diary.content) {
-        editor.innerHTML = diary.content;
-      } else {
-        editor.innerHTML = '<p><br></p>';
+      if (this.currentDiaryDate === date) {
+        const editor = document.getElementById('diary-editor');
+        if (editor) {
+          editor.innerHTML = diary && diary.content ? diary.content : '<p><br></p>';
+        }
       }
     } catch (e) {
       console.warn('Load diary failed:', e);
+    } finally {
+      this._isLoading = false;
     }
   },
 
@@ -197,6 +201,7 @@ TB.Diary = {
   },
 
   _triggerAutoSave() {
+    if (this._isLoading) return;
     if (this.autoSaveTimer) clearTimeout(this.autoSaveTimer);
     this.autoSaveTimer = setTimeout(() => {
       this._saveDiary();

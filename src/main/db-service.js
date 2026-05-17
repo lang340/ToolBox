@@ -148,6 +148,7 @@ function saveToFile() {
 }
 
 function closeDB() {
+  if (_saveTimer) { clearTimeout(_saveTimer); _saveTimer = null; }
   if (_db) {
     saveToFile();
     _db.close();
@@ -155,4 +156,9 @@ function closeDB() {
   }
 }
 
-module.exports = { initDB, db, query, run, closeDB, saveToFile };
+function getDbInstance() {
+  if (!_db) throw new Error('Database not initialized');
+  return _db;
+}
+
+module.exports = { initDB, query, run, closeDB, scheduleSave, getDbInstance };

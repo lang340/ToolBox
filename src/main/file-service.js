@@ -2,6 +2,8 @@ const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
 
+const SAFE_EXTS = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp'];
+
 let imageDataDir = null;
 let diaryImageDir = null;
 
@@ -21,19 +23,11 @@ function saveImage(category, buffer, ext = 'png') {
   const dir = category === 'clipboard' ? imageDataDir : diaryImageDir;
   if (!dir) throw new Error('File service not initialized');
 
-  const filename = `${crypto.randomUUID()}.${ext}`;
+  const safeExt = SAFE_EXTS.includes(ext) ? ext : 'png';
+  const filename = `${crypto.randomUUID()}.${safeExt}`;
   const filePath = path.join(dir, filename);
   fs.writeFileSync(filePath, buffer);
   return filename;
-}
-
-function readImage(category, filename) {
-  const dir = category === 'clipboard' ? imageDataDir : diaryImageDir;
-  if (!dir) throw new Error('File service not initialized');
-
-  const filePath = path.join(dir, filename);
-  if (!fs.existsSync(filePath)) return null;
-  return fs.readFileSync(filePath);
 }
 
 function deleteImage(category, filename) {
@@ -53,4 +47,4 @@ function getImagePath(category, filename) {
   return path.join(dir, filename);
 }
 
-module.exports = { initFileService, saveImage, readImage, deleteImage, getImagePath };
+module.exports = { initFileService, saveImage, deleteImage, getImagePath };

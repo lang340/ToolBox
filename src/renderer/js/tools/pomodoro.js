@@ -148,7 +148,10 @@ TB.Pomodoro = {
 
   _playSound() {
     try {
-      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      if (!this._audioCtx || this._audioCtx.state === 'closed') {
+        this._audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      const ctx = this._audioCtx;
       const oscillator = ctx.createOscillator();
       const gain = ctx.createGain();
       oscillator.connect(gain);
