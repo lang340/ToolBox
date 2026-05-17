@@ -81,6 +81,7 @@ L:/gjx/ToolBox/
 | `task` | create(task), update(id, fields), delete(id), getByDate(date), getByMonth(y,m), toggleComplete(id, date) | task:* |
 | `note` | create(title), get(id), getAll(), update(id, fields), delete(id), uploadImage(data, ext) | note:* |
 | `pomodoro` | saveRecord(duration, type), getToday() | pomodoro:* |
+| `window` | minimize(), maximize(), close(), isMaximized() | window:* |
 
 **安全模式**：
 - `safeHandler(fn)` 包裹所有 ipcMain.handle，防止未捕获异常
@@ -96,20 +97,31 @@ L:/gjx/ToolBox/
 5. **DB 持久化**：sql.js 内存数据库 + 500ms debounce 写入文件（`scheduleSave()`）
 6. **Schema 迁移**：`schema_version` 表追踪版本，`initDB()` 按版本号顺序执行迁移脚本
 7. **图片存储**：UUID 文件名，按 category（clipboard/diary）分目录，扩展名白名单校验
+8. **图片缩放**：contentEditable 编辑器中点击图片显示 4 角拖拽手柄，按比例缩放（最小 80px / 最大编辑器宽度），`position:fixed` 覆盖层 + `getBoundingClientRect()` 定位，禁用 Chromium 原生 `enableObjectResizing`
 
 ## 历史踩坑记录
 
-| 问题 | 原因 | 解决 |
-|---|---|---|
-| better-sqlite3 编译失败 | 无 VS C++ build tools | 改用 sql.js |
-| Electron 启动报 app undefined | 系统 `ELECTRON_RUN_AS_NODE=1` | cross-env + unset |
-| 剪贴板复制一次出现 6 条 | `ipcRenderer.on` 累积注册 | `removeAllListeners` 先清理 |
-| 剪贴板删除按钮堆叠 | 文本卡片缺 `position:relative` | 补上定位 |
-| number input 箭头挡数字 | 浏览器默认 spinner | CSS `-webkit-appearance: none` |
-| 日记一天只能一条 | `diaries` 表 date UNIQUE | 改为 `notes` 表，无 UNIQUE 约束 |
-| SQL 注入风险 | 动态拼接字段名 | `ALLOWED_TASK_FIELDS` 白名单 |
-| Date 时区偏移 | `new Date('YYYY-MM-DD')` UTC 解析 | 追加 `T00:00:00` |
-| AudioContext 泄漏 | 每次完成新建实例 | 复用单例 + state 检查 |
+详见 [BUGFIX-LOG.md](./BUGFIX-LOG.md)
+
+| # | 问题 | 根因 | 修复 |
+|---|---|---|---|
+| 1 | SQL 注入 | 动态拼接字段名 | ALLOWED_TASK_FIELDS 白名单 |
+| 2 | IPC 异常未捕获 | handler 无 try-catch | safeHandler 包装 |
+| 3 | 删除任务无事务 | 两次 DELETE 未包裹 | BEGIN/COMMIT/ROLLBACK |
+| 4 | 日记保存竞态 | 异步加载期间仍触发保存 | _isLoading 标志 |
+| 5 | 剪贴板图片哈希 | bitmap.length 不唯一 | MD5 哈希 |
+| 6 | Date 时区偏移 | UTC 解析 | 追加 T00:00:00 |
+| 7 | 扩展名注入 | 未校验 ext | ALLOWED_IMAGE_EXTS 白名单 |
+| 8 | AudioContext 泄漏 | 每次新建实例 | 复用单例 |
+| 9 | Schedule 初始化 | 缺 _loadMonthTasks 调用 | 补上 |
+| 10 | number input 箭头 | 浏览器默认 spinner | CSS 隐藏 |
+| 11 | 剪贴板删除按钮飘移 | 缺 position:relative | 补上 |
+| 12 | 剪贴板 6 倍重复 | on 监听器累积 | removeAllListeners + 1s 去重 |
+| 13 | 日记一天一条 | date UNIQUE | 新建 notes 表 |
+| 14 | 标题切换后消失 | noteList 内存未同步 | _syncNoteData |
+| 15 | 标题互相覆盖 | 异步竞态 + 实例属性 | await + 局部变量固住 ID |
+| 16 | 排序混乱 + 时间篡改 | 无条件保存刷 updated_at | _isDirty 脏标记 + ORDER BY id |
+| 17 | Electron 启动报错 | ELECTRON_RUN_AS_NODE 环境变量 | set 清除后再启动 |
 
 ## 启动方式
 
