@@ -4,14 +4,15 @@
   "description": "绿色便携桌面工具箱 - 番茄钟/剪贴板/日程任务/日记本",
   "main": "src/main/index.js",
   "scripts": {
-    "start": "electron .",
+    "start": "cross-env ELECTRON_RUN_AS_NODE= electron .",
     "build": "electron-builder --win portable",
     "test": "echo \"E2E tests in P3\" && exit 0"
   },
   "author": "海金",
   "license": "MIT",
   "devDependencies": {
-    "electron": "^33.0.0",
+    "cross-env": "^7.0.3",
+    "electron": "^31.0.0",
     "electron-builder": "^25.0.0"
   },
   "dependencies": {
@@ -39,7 +40,9 @@
       {
         "from": "data",
         "to": "data",
-        "filter": ["**/*"]
+        "filter": [
+          "**/*"
+        ]
       }
     ]
   }
