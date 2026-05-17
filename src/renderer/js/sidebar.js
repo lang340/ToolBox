@@ -19,8 +19,8 @@ TB.Sidebar = {
       icon: '<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><rect x="7" y="13" width="3" height="3" rx="0.5"/><rect x="14" y="13" width="3" height="3" rx="0.5"/>',
     },
     {
-      name: 'diary',
-      tooltip: '日记本',
+      name: 'notebook',
+      tooltip: '记事本',
       icon: '<path d="M4 4h12a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H4"/><path d="M4 4a2 2 0 0 1 2-2h0a2 2 0 0 1 2 2v14"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="14" y2="14"/>',
     },
   ],

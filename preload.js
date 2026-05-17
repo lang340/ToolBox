@@ -17,6 +17,7 @@ contextBridge.exposeInMainWorld('api', {
     delete: (id) => ipcRenderer.invoke('clipboard:delete', id),
     clear: () => ipcRenderer.invoke('clipboard:clear'),
     onNewRecord: (callback) => {
+      ipcRenderer.removeAllListeners('clipboard:new-record');
       ipcRenderer.on('clipboard:new-record', (_event, record) => callback(record));
     },
   },
@@ -30,11 +31,13 @@ contextBridge.exposeInMainWorld('api', {
     toggleComplete: (id, date) => ipcRenderer.invoke('task:toggle-complete', id, date),
   },
 
-  diary: {
-    get: (date) => ipcRenderer.invoke('diary:get', date),
-    save: (date, content) => ipcRenderer.invoke('diary:save', date, content),
-    getList: (month) => ipcRenderer.invoke('diary:get-list', month),
-    uploadImage: (data, ext) => ipcRenderer.invoke('diary:upload-image', data, ext),
+  note: {
+    create: (title) => ipcRenderer.invoke('note:create', title),
+    get: (id) => ipcRenderer.invoke('note:get', id),
+    getAll: () => ipcRenderer.invoke('note:get-all'),
+    update: (id, fields) => ipcRenderer.invoke('note:update', id, fields),
+    delete: (id) => ipcRenderer.invoke('note:delete', id),
+    uploadImage: (data, ext) => ipcRenderer.invoke('note:upload-image', data, ext),
   },
 
   pomodoro: {

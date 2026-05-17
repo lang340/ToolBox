@@ -10,6 +10,7 @@ let clipboardWatching = false;
 let clipboardIntervalId = null;
 let lastClipboardText = '';
 let lastClipboardImageHash = '';
+let lastClipboardSaveTime = 0;
 
 const ALLOWED_TASK_FIELDS = ['title', 'repeat_type', 'repeat_meta', 'start_date', 'end_date', 'time_start', 'time_end'];
 const ALLOWED_IMAGE_EXTS = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp'];
@@ -83,7 +84,7 @@ function registerIpcHandlers() {
   registerSettingsHandlers();
   registerClipboardHandlers();
   registerTaskHandlers();
-  registerDiaryHandlers();
+  registerNoteHandlers();
   registerPomodoroHandlers();
 }
 
@@ -167,15 +168,19 @@ function startClipboardWatch() {
 
       if (currentText !== lastClipboardText && currentText.trim()) {
         lastClipboardText = currentText;
-        const result = run('INSERT INTO clipboard_records (type, content) VALUES (?, ?)', ['text', currentText]);
-        const record = {
-          id: result.lastInsertRowid,
-          type: 'text',
-          content: currentText,
-          created_at: new Date().toISOString(),
-          pinned: 0,
-        };
-        sendToRenderer('clipboard:new-record', record);
+        const now = Date.now();
+        if (now - lastClipboardSaveTime > 1000) {
+          lastClipboardSaveTime = now;
+          const result = run('INSERT INTO clipboard_records (type, content) VALUES (?, ?)', ['text', currentText]);
+          const record = {
+            id: result.lastInsertRowid,
+            type: 'text',
+            content: currentText,
+            created_at: new Date().toISOString(),
+            pinned: 0,
+          };
+          sendToRenderer('clipboard:new-record', record);
+        }
       }
 
       if (!currentImage.isEmpty()) {
@@ -325,22 +330,43 @@ function isTaskActiveOnDate(task, dateStr) {
   }
 }
 
-function registerDiaryHandlers() {
-  ipcMain.handle('diary:get', safeHandler((_event, date) => {
-    const rows = query('SELECT * FROM diaries WHERE date = ?', [date]);
+function registerNoteHandlers() {
+  ipcMain.handle('note:create', safeHandler((_event, title) => {
+    const result = run('INSERT INTO notes (title, content) VALUES (?, ?)', [title || '未命名笔记', '']);
+    return { id: result.lastInsertRowid };
+  }));
+
+  ipcMain.handle('note:get', safeHandler((_event, id) => {
+    const rows = query('SELECT * FROM notes WHERE id = ?', [id]);
     return rows.length > 0 ? rows[0] : null;
   }));
 
-  ipcMain.handle('diary:save', safeHandler((_event, date, content) => {
-    run("INSERT OR REPLACE INTO diaries (date, content, updated_at) VALUES (?, ?, datetime('now', 'localtime'))", [date, content]);
+  ipcMain.handle('note:get-all', safeHandler(() => {
+    return query('SELECT id, title, created_at, updated_at FROM notes ORDER BY updated_at DESC');
+  }));
+
+  ipcMain.handle('note:update', safeHandler((_event, id, fields) => {
+    const allowedFields = ['title', 'content'];
+    const sets = [];
+    const values = [];
+    Object.entries(fields).forEach(([key, value]) => {
+      if (!allowedFields.includes(key)) return;
+      sets.push(`${key} = ?`);
+      values.push(value);
+    });
+    if (sets.length === 0) return { success: false };
+    sets.push("updated_at = datetime('now', 'localtime')");
+    values.push(id);
+    run(`UPDATE notes SET ${sets.join(', ')} WHERE id = ?`, values);
     return { success: true };
   }));
 
-  ipcMain.handle('diary:get-list', safeHandler((_event, month) => {
-    return query('SELECT date FROM diaries WHERE date LIKE ? ORDER BY date DESC', [`${month}%`]);
+  ipcMain.handle('note:delete', safeHandler((_event, id) => {
+    run('DELETE FROM notes WHERE id = ?', [id]);
+    return { success: true };
   }));
 
-  ipcMain.handle('diary:upload-image', safeHandler((_event, data, ext) => {
+  ipcMain.handle('note:upload-image', safeHandler((_event, data, ext) => {
     const safeExt = ALLOWED_IMAGE_EXTS.includes(ext) ? ext : 'png';
     const buffer = Buffer.from(data, 'base64');
     const filename = saveImage('diary', buffer, safeExt);

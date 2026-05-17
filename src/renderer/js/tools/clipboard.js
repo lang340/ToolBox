@@ -11,6 +11,9 @@ TB.Clipboard = {
         </div>
         <button class="btn-text" id="clipboard-clear">清空全部</button>
       </div>
+      <div style="margin-bottom:12px;">
+        <input type="text" id="clipboard-search" placeholder="搜索文字记录..." style="width:100%;padding:6px 10px;">
+      </div>
       <div id="clipboard-list" style="display:flex;flex-direction:column;gap:8px;"></div>
       <div id="clipboard-empty" class="empty-state">
         <span>暂无记录</span>
@@ -30,6 +33,7 @@ TB.Clipboard = {
   init() {
     this.isWatching = false;
     this.records = [];
+    this.searchKeyword = '';
 
     this._bindEvents();
     this._loadRecords();
@@ -56,6 +60,16 @@ TB.Clipboard = {
       this._renderRecords();
     });
 
+    const searchInput = document.getElementById('clipboard-search');
+    let searchTimer = null;
+    searchInput.addEventListener('input', (e) => {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(() => {
+        this.searchKeyword = e.target.value.trim().toLowerCase();
+        this._renderRecords();
+      }, 300);
+    });
+
     document.getElementById('clipboard-modal-close').addEventListener('click', () => {
       document.getElementById('clipboard-modal').style.display = 'none';
     });
@@ -64,6 +78,16 @@ TB.Clipboard = {
       if (e.target.id === 'clipboard-modal') {
         document.getElementById('clipboard-modal').style.display = 'none';
       }
+    });
+  },
+
+  _getFilteredRecords() {
+    if (!this.searchKeyword) return this.records;
+    return this.records.filter((r) => {
+      if (r.type === 'text') {
+        return r.content.toLowerCase().includes(this.searchKeyword);
+      }
+      return false;
     });
   },
 
@@ -100,20 +124,28 @@ TB.Clipboard = {
   _renderRecords() {
     const list = document.getElementById('clipboard-list');
     const empty = document.getElementById('clipboard-empty');
+    const filtered = this._getFilteredRecords();
 
-    if (!this.records || this.records.length === 0) {
+    if (!filtered || filtered.length === 0) {
       list.innerHTML = '';
       empty.style.display = 'flex';
+      if (this.searchKeyword && this.records.length > 0) {
+        empty.querySelector('span:first-child').textContent = '没有匹配的记录';
+        empty.querySelector('span:last-child').textContent = '试试其他关键词';
+      } else {
+        empty.querySelector('span:first-child').textContent = '暂无记录';
+        empty.querySelector('span:last-child').textContent = '开启监听后，复制的内容会自动记录';
+      }
       return;
     }
 
     empty.style.display = 'none';
-    list.innerHTML = this.records.map((record) => {
+    list.innerHTML = filtered.map((record) => {
       if (record.type === 'text') {
         const text = this._escapeHtml(record.content);
         const preview = text.length > 200 ? text.substring(0, 200) + '...' : text;
         return `
-          <div class="card" style="cursor:pointer;" data-id="${record.id}" data-type="text">
+          <div class="card" style="cursor:pointer;position:relative;" data-id="${record.id}" data-type="text">
             <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px;">${this._formatTime(record.created_at)}</div>
             <div style="color:var(--text-secondary);word-break:break-all;white-space:pre-wrap;">${preview}</div>
             <button class="btn-text" style="position:absolute;top:8px;right:8px;font-size:11px;" data-delete="${record.id}">删除</button>

@@ -6,7 +6,7 @@ var TB = window.TB || {};
   TB.Router.register('pomodoro', TB.Pomodoro);
   TB.Router.register('clipboard', TB.Clipboard);
   TB.Router.register('schedule', TB.Schedule);
-  TB.Router.register('diary', TB.Diary);
+  TB.Router.register('notebook', TB.Notebook);
 
   TB.Sidebar.init('sidebar');
 

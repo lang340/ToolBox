@@ -6,7 +6,7 @@ let _db = null;
 let _dbPath = null;
 let _saveTimer = null;
 
-const SCHEMA_VERSION = 1;
+const SCHEMA_VERSION = 2;
 
 const INITIAL_SCHEMA = `
   CREATE TABLE IF NOT EXISTS clipboard_records (
@@ -64,6 +64,17 @@ const INITIAL_SCHEMA = `
   INSERT INTO schema_version (version) VALUES (1);
 `;
 
+const MIGRATION_V2 = `
+  CREATE TABLE IF NOT EXISTS notes (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    title       TEXT NOT NULL DEFAULT '',
+    content     TEXT NOT NULL DEFAULT '',
+    created_at  TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
+    updated_at  TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
+  );
+  INSERT INTO schema_version (version) VALUES (2);
+`;
+
 async function initDB(dataDir) {
   if (!fs.existsSync(dataDir)) {
     fs.mkdirSync(dataDir, { recursive: true });
@@ -83,6 +94,10 @@ async function initDB(dataDir) {
   const currentVersion = getCurrentVersion();
   if (currentVersion === 0) {
     _db.run(INITIAL_SCHEMA);
+    _db.run(MIGRATION_V2);
+    saveToFile();
+  } else if (currentVersion < 2) {
+    if (currentVersion < 2) _db.run(MIGRATION_V2);
     saveToFile();
   }
 }
