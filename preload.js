@@ -44,4 +44,11 @@ contextBridge.exposeInMainWorld('api', {
     saveRecord: (duration, type) => ipcRenderer.invoke('pomodoro:save-record', duration, type),
     getToday: () => ipcRenderer.invoke('pomodoro:get-today'),
   },
+
+  window: {
+    minimize: () => ipcRenderer.invoke('window:minimize'),
+    maximize: () => ipcRenderer.invoke('window:maximize'),
+    close: () => ipcRenderer.invoke('window:close'),
+    isMaximized: () => ipcRenderer.invoke('window:is-maximized'),
+  },
 });
