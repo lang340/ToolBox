@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, clipboard: electronClipboard } = require('electron');
+const { app, BrowserWindow, ipcMain, clipboard: electronClipboard, Menu } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
@@ -30,7 +30,7 @@ function createWindow() {
     minWidth: 600,
     minHeight: 400,
     resizable: true,
-    frame: true,
+    frame: false,
     backgroundColor: '#F2ECE0',
     webPreferences: {
       preload: path.join(__dirname, '..', '..', 'preload.js'),
@@ -39,6 +39,7 @@ function createWindow() {
     },
   });
 
+  Menu.setApplicationMenu(null);
   mainWindow.loadFile(path.join(__dirname, '..', 'renderer', 'index.html'));
 
   mainWindow.on('closed', () => {
@@ -86,6 +87,7 @@ function registerIpcHandlers() {
   registerTaskHandlers();
   registerNoteHandlers();
   registerPomodoroHandlers();
+  registerWindowHandlers();
 }
 
 function registerSettingsHandlers() {
@@ -342,7 +344,7 @@ function registerNoteHandlers() {
   }));
 
   ipcMain.handle('note:get-all', safeHandler(() => {
-    return query('SELECT id, title, created_at, updated_at FROM notes ORDER BY updated_at DESC');
+    return query('SELECT id, title, created_at, updated_at FROM notes ORDER BY id DESC');
   }));
 
   ipcMain.handle('note:update', safeHandler((_event, id, fields) => {
@@ -385,6 +387,33 @@ function registerPomodoroHandlers() {
       "SELECT COUNT(*) as count FROM pomodoro_records WHERE type = 'work' AND date(completed_at) = date('now', 'localtime')"
     );
     return rows.length > 0 ? rows[0] : { count: 0 };
+  }));
+}
+
+function registerWindowHandlers() {
+  ipcMain.handle('window:minimize', safeHandler(() => {
+    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.minimize();
+    return { success: true };
+  }));
+
+  ipcMain.handle('window:maximize', safeHandler(() => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      if (mainWindow.isMaximized()) {
+        mainWindow.unmaximize();
+      } else {
+        mainWindow.maximize();
+      }
+    }
+    return { success: true };
+  }));
+
+  ipcMain.handle('window:close', safeHandler(() => {
+    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.close();
+    return { success: true };
+  }));
+
+  ipcMain.handle('window:is-maximized', safeHandler(() => {
+    return mainWindow && !mainWindow.isDestroyed() ? mainWindow.isMaximized() : false;
   }));
 }
 
