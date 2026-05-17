@@ -5,6 +5,10 @@ TB.Notebook = {
   currentNoteId: null,
   autoSaveTimer: null,
   _isLoading: false,
+  _isDirty: false,
+  _activeImg: null,
+  _resizeOverlay: null,
+  _resizeDocClickHandler: null,
 
   render() {
     return `
@@ -29,6 +33,7 @@ TB.Notebook = {
   init() {
     this._renderToolbar();
     this._bindEvents();
+    this._initImageResize();
     this._loadNoteList();
   },
 
@@ -216,7 +221,8 @@ TB.Notebook = {
   async _selectNote(id) {
     if (this.currentNoteId === id) return;
 
-    this._saveCurrentNote();
+    this._hideImageHandles();
+    await this._saveCurrentNote();
 
     this.currentNoteId = id;
     this._isLoading = true;
@@ -251,6 +257,7 @@ TB.Notebook = {
 
   _triggerAutoSave() {
     if (this._isLoading) return;
+    this._isDirty = true;
     if (this.autoSaveTimer) clearTimeout(this.autoSaveTimer);
     this.autoSaveTimer = setTimeout(() => {
       this._saveCurrentNote();
@@ -258,7 +265,9 @@ TB.Notebook = {
   },
 
   async _saveCurrentNote() {
-    if (!this.currentNoteId) return;
+    if (!this._isDirty) return;
+    const id = this.currentNoteId;
+    if (!id) return;
     const editor = document.getElementById('notebook-editor');
     const titleInput = document.getElementById('notebook-title');
     if (!editor) return;
@@ -267,24 +276,37 @@ TB.Notebook = {
     const title = titleInput ? titleInput.value.trim() : '';
 
     try {
-      await window.api.note.update(this.currentNoteId, { title, content });
-      this._updateListItem(this.currentNoteId, title);
+      await window.api.note.update(id, { title, content });
+      this._syncNoteData(id, title);
+      this._updateListItem(id, title);
+      this._isDirty = false;
     } catch (e) {
       console.warn('Save note failed:', e);
     }
   },
 
   async _saveTitle() {
-    if (!this.currentNoteId) return;
+    const id = this.currentNoteId;
+    if (!id) return;
     const titleInput = document.getElementById('notebook-title');
     if (!titleInput) return;
     const title = titleInput.value.trim();
+    this._isDirty = true;
 
     try {
-      await window.api.note.update(this.currentNoteId, { title });
-      this._updateListItem(this.currentNoteId, title);
+      await window.api.note.update(id, { title });
+      this._syncNoteData(id, title);
+      this._updateListItem(id, title);
+      this._isDirty = false;
     } catch (e) {
       console.warn('Save title failed:', e);
+    }
+  },
+
+  _syncNoteData(id, title) {
+    const note = this.noteList.find((n) => n.id === id);
+    if (note) {
+      note.title = title || '';
     }
   },
 
@@ -315,7 +337,159 @@ TB.Notebook = {
     return timeStr;
   },
 
+  _initImageResize() {
+    const editor = document.getElementById('notebook-editor');
+
+    // 禁用 Chromium 原生图片缩放手柄
+    try { document.execCommand('enableObjectResizing', false, 'false'); } catch (e) { /* ignore */ }
+
+    // 点击图片 → 显示自定义缩放手柄
+    editor.addEventListener('click', (e) => {
+      if (e.target.tagName === 'IMG') {
+        e.preventDefault();
+        this._showImageHandles(e.target);
+      } else if (this._activeImg) {
+        this._hideImageHandles();
+      }
+    });
+
+    // 阻止原生图片拖拽/缩放
+    editor.addEventListener('mousedown', (e) => {
+      if (e.target.tagName === 'IMG') {
+        e.preventDefault();
+      }
+    });
+
+    // 编辑器滚动时更新手柄位置
+    editor.addEventListener('scroll', () => {
+      if (this._activeImg && this._resizeOverlay) {
+        this._positionOverlay(this._resizeOverlay, this._activeImg);
+      }
+    });
+
+    // 点击编辑器外区域 → 隐藏手柄
+    this._resizeDocClickHandler = (e) => {
+      if (this._activeImg && !e.target.closest('#notebook-editor') && !e.target.closest('#notebook-img-overlay')) {
+        this._hideImageHandles();
+      }
+    };
+    document.addEventListener('click', this._resizeDocClickHandler);
+  },
+
+  _showImageHandles(img) {
+    this._hideImageHandles();
+    this._activeImg = img;
+
+    // 图片选中高亮
+    img.style.outline = '2px solid var(--khaki-800)';
+    img.style.outlineOffset = '2px';
+
+    // 创建手柄覆盖层
+    const overlay = document.createElement('div');
+    overlay.id = 'notebook-img-overlay';
+    overlay.style.cssText = 'position:fixed;pointer-events:none;z-index:50;';
+
+    // 4 个角的拖拽手柄
+    const corners = [
+      { name: 'nw', cursor: 'nwse-resize', pos: { top: '-5px', left: '-5px' } },
+      { name: 'ne', cursor: 'nesw-resize', pos: { top: '-5px', right: '-5px' } },
+      { name: 'sw', cursor: 'nesw-resize', pos: { bottom: '-5px', left: '-5px' } },
+      { name: 'se', cursor: 'nwse-resize', pos: { bottom: '-5px', right: '-5px' } },
+    ];
+
+    corners.forEach(({ name, cursor, pos }) => {
+      const handle = document.createElement('div');
+      handle.style.cssText =
+        'position:absolute;width:10px;height:10px;' +
+        'background:var(--khaki-800);border:1.5px solid #fff;border-radius:2px;' +
+        'pointer-events:auto;cursor:' + cursor + ';';
+      Object.entries(pos).forEach(([k, v]) => { handle.style[k] = v; });
+
+      handle.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        this._startResize(e, name);
+      });
+
+      overlay.appendChild(handle);
+    });
+
+    this._positionOverlay(overlay, img);
+    document.body.appendChild(overlay);
+    this._resizeOverlay = overlay;
+  },
+
+  _positionOverlay(overlay, img) {
+    // 图片已从 DOM 中移除（如被删除）
+    if (!img.isConnected) {
+      this._hideImageHandles();
+      return;
+    }
+    const rect = img.getBoundingClientRect();
+    overlay.style.left = rect.left + 'px';
+    overlay.style.top = rect.top + 'px';
+    overlay.style.width = rect.width + 'px';
+    overlay.style.height = rect.height + 'px';
+  },
+
+  _hideImageHandles() {
+    if (this._activeImg) {
+      this._activeImg.style.outline = '';
+      this._activeImg.style.outlineOffset = '';
+      this._activeImg = null;
+    }
+    if (this._resizeOverlay) {
+      this._resizeOverlay.remove();
+      this._resizeOverlay = null;
+    }
+  },
+
+  _startResize(e, corner) {
+    const img = this._activeImg;
+    if (!img) return;
+
+    const startX = e.clientX;
+    const startWidth = img.offsetWidth;
+    const startHeight = img.offsetHeight;
+    const aspectRatio = startWidth / startHeight;
+    const editor = document.getElementById('notebook-editor');
+    const maxWidth = editor.clientWidth - 24; // 减去 padding
+
+    const onMouseMove = (moveEvent) => {
+      const dx = moveEvent.clientX - startX;
+      let newWidth;
+      if (corner === 'se' || corner === 'ne') {
+        newWidth = startWidth + dx;
+      } else {
+        newWidth = startWidth - dx;
+      }
+      newWidth = Math.max(80, Math.min(maxWidth, newWidth));
+      const newHeight = newWidth / aspectRatio;
+
+      img.style.width = newWidth + 'px';
+      img.style.height = newHeight + 'px';
+
+      if (this._resizeOverlay) {
+        this._positionOverlay(this._resizeOverlay, img);
+      }
+    };
+
+    const onMouseUp = () => {
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+      this._triggerAutoSave();
+    };
+
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+  },
+
   destroy() {
+    this._hideImageHandles();
+    if (this._resizeDocClickHandler) {
+      document.removeEventListener('click', this._resizeDocClickHandler);
+      this._resizeDocClickHandler = null;
+    }
     if (this.autoSaveTimer) clearTimeout(this.autoSaveTimer);
     this._saveCurrentNote();
   },
